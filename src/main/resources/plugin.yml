@@ -1,0 +1,15 @@
+name: AxoBridge
+version: '${version}'
+main: com.axocraft.axobridge.AxoBridgePlugin
+api-version: '1.21'
+author: AxoCraft
+description: AxoCraft web sitesi ile Paper sunucusu arasinda guvenli durum baglantisi.
+commands:
+  axobridge:
+    description: AxoBridge baglanti durumunu gosterir.
+    usage: /axobridge status
+    permission: axobridge.admin
+permissions:
+  axobridge.admin:
+    description: AxoBridge yonetim komutlarini kullanir.
+    default: op
