@@ -5,7 +5,7 @@ const crypto = require("crypto");
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const apiKey = process.env.AXOBRIDGE_API_KEY;
-const allowedOrigin = process.env.ALLOWED_ORIGIN || "https://axocraft.com";
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || "https://axocraft.com,https://tavuklupilavv.github.io").split(",").map(value => value.trim()).filter(Boolean);
 
 if (!apiKey || apiKey.length < 32) {
   console.error("AXOBRIDGE_API_KEY must be set to a random secret of at least 32 characters.");
@@ -13,7 +13,10 @@ if (!apiKey || apiKey.length < 32) {
 }
 
 app.use(cors({
-  origin: allowedOrigin,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("Origin not allowed by CORS"));
+  },
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
