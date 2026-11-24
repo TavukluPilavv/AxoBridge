@@ -3,12 +3,11 @@ version: '${version}'
 main: com.axocraft.axobridge.AxoBridgePlugin
 api-version: '1.21'
 author: AxoCraft
-description: AxoCraft web sitesi ile Paper sunucusu arasinda guvenli durum baglantisi.
+description: AxoCraft web sitesi ile Paper sunucusu arasinda guvenli durum ve VIP dogrulama baglantisi.
 commands:
   axobridge:
-    description: AxoBridge baglanti durumunu gosterir.
-    usage: /axobridge status
-    permission: axobridge.admin
+    description: AxoBridge durumunu gosterir veya tek kullanimlik VIP kodunu dogrular.
+    usage: /axobridge <status|reload|dogrula KOD>
 permissions:
   axobridge.admin:
     description: AxoBridge yonetim komutlarini kullanir.
