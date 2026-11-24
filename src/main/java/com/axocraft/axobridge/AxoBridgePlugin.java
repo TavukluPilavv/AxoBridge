@@ -141,7 +141,7 @@ public final class AxoBridgePlugin extends JavaPlugin {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (args.length > 0 && args[0].equalsIgnoreCase("dogrula")) {
+        if (args.length > 0 && (args[0].equalsIgnoreCase("dogrula") || args[0].equalsIgnoreCase("doğrula"))) {
             if (!(sender instanceof org.bukkit.entity.Player player)) {
                 sender.sendMessage("§cBu komut yalnızca oyun içinden kullanılabilir.");
                 return true;
