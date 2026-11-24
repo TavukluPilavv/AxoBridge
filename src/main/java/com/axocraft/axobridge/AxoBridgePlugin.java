@@ -141,18 +141,71 @@ public final class AxoBridgePlugin extends JavaPlugin {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (args.length > 0 && args[0].equalsIgnoreCase("dogrula")) {
+            if (!(sender instanceof org.bukkit.entity.Player player)) {
+                sender.sendMessage("§cBu komut yalnızca oyun içinden kullanılabilir.");
+                return true;
+            }
+            if (args.length != 2 || !args[1].matches("\\d{6}")) {
+                player.sendMessage("§bAxoBridge §7» §fKullanım: §e/axobridge doğrula KOD");
+                return true;
+            }
+            if (apiKey.isBlank() || baseUrl.isBlank()) {
+                player.sendMessage("§cAxoBridge şu anda yapılandırılmamış.");
+                return true;
+            }
+            JsonObject payload = new JsonObject();
+            payload.addProperty("code", args[1]);
+            payload.addProperty("minecraftUsername", player.getName());
+            HttpRequest request = authenticatedRequest("/api/bridge/verify")
+                    .POST(HttpRequest.BodyPublishers.ofString(payload.toString())).build();
+            player.sendMessage("§bAxoBridge §7» §fKod kontrol ediliyor...");
+            httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> Bukkit.getScheduler().runTask(this, () -> {
+                        if (!player.isOnline()) return;
+                        if (response.statusCode() == 201) {
+                            player.sendMessage("§aHesap doğrulandı! VIP+ teslimat kuyruğuna eklendi.");
+                            player.sendMessage("§7VIP+ rütben kısa süre içinde verilecek.");
+                        } else if (response.statusCode() == 403) {
+                            player.sendMessage("§cBu kod farklı bir Minecraft oyuncu adına ait.");
+                        } else if (response.statusCode() == 404) {
+                            player.sendMessage("§cKod geçersiz veya süresi dolmuş. Siteden yeni kod al.");
+                        } else if (response.statusCode() == 409) {
+                            player.sendMessage("§eBu oyuncu deneme VIP+ hakkını daha önce kullanmış.");
+                        } else {
+                            player.sendMessage("§cDoğrulama başarısız. Daha sonra tekrar dene.");
+                            getLogger().warning("VIP verification API status: " + response.statusCode());
+                        }
+                    }))
+                    .exceptionally(error -> {
+                        Bukkit.getScheduler().runTask(this, () -> {
+                            if (player.isOnline()) player.sendMessage("§cAxoBridge API bağlantısı kurulamadı.");
+                        });
+                        getLogger().warning("VIP verification request failed: " + error.getMessage());
+                        return null;
+                    });
+            return true;
+        }
         if (args.length == 0 || args[0].equalsIgnoreCase("status")) {
+            if (!sender.hasPermission("axobridge.admin")) {
+                sender.sendMessage("§cBu komutu kullanma iznin yok.");
+                return true;
+            }
             sender.sendMessage("§bAxoBridge §7» §f" + lastResult);
             sender.sendMessage("§7API: §f" + (baseUrl.isBlank() ? "Ayarlanmamis" : baseUrl));
             return true;
         }
         if (args[0].equalsIgnoreCase("reload")) {
+            if (!sender.hasPermission("axobridge.admin")) {
+                sender.sendMessage("§cBu komutu kullanma iznin yok.");
+                return true;
+            }
             reloadConfig();
             loadSettings();
             sender.sendMessage("§bAxoBridge §7» §aAyarlar yeniden yuklendi. Plugin'i yeniden baslatman gerekebilir.");
             return true;
         }
-        sender.sendMessage("§bKullanim: §f/axobridge status");
+        sender.sendMessage("§bKullanim: §f/axobridge <status|reload|dogrula KOD>");
         return true;
     }
 
