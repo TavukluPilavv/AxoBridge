@@ -57,7 +57,7 @@ public final class AxoBridgePlugin extends JavaPlugin {
     }
 
     private void startHeartbeat() {
-        Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
+        Bukkit.getScheduler().runTaskTimer(this, () -> {
             JsonObject payload = new JsonObject();
             payload.addProperty("serverName", displayName);
             payload.addProperty("minecraftVersion", Bukkit.getMinecraftVersion());
