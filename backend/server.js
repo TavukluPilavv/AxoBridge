@@ -23,6 +23,8 @@ let latestHeartbeat = null;
 // DEMO ONLY: in-memory queue. A Render restart clears pending demo orders.
 const demoOrders = [];
 const completedDemoOrders = new Set();
+const demoChallenges = new Map();
+const challengeCooldowns = new Map();
 
 function safeEqual(a, b) {
   const left = Buffer.from(String(a));
@@ -64,28 +66,60 @@ app.post("/api/bridge/heartbeat", requireBridgeKey, (req, res) => {
   res.json({ ok: true, received: true });
 });
 
-// Internal website-backend endpoint. Never call this from browser JavaScript with the server key.
-// It is intentionally limited to the fixed demo VIP+ product and a 30-day duration.
-app.post("/api/admin/demo-vip", requireBridgeKey, (req, res) => {
+// Public demo claim request. The code is only useful when entered in-game
+// by the Minecraft account whose name was entered on the website.
+app.post("/api/demo-vip/request", (req, res) => {
   const username = String(req.body?.minecraftUsername || "").trim();
   if (!/^[A-Za-z0-9_]{3,16}$/.test(username)) {
     return res.status(400).json({ ok: false, error: "invalid_minecraft_username" });
   }
-  const existing = demoOrders.find(order => order.username.toLowerCase() === username.toLowerCase()
-    && order.status !== "failed");
-  if (existing || completedDemoOrders.has(username.toLowerCase())) {
+  const key = username.toLowerCase();
+  const existingOrder = demoOrders.find(order => order.username.toLowerCase() === key && order.status !== "failed");
+  if (existingOrder || completedDemoOrders.has(key)) {
     return res.status(409).json({ ok: false, error: "demo_already_used" });
   }
+  const lastRequest = challengeCooldowns.get(key) || 0;
+  if (Date.now() - lastRequest < 30000) {
+    return res.status(429).json({ ok: false, error: "please_wait_before_requesting_another_code" });
+  }
+  const code = String(crypto.randomInt(100000, 1000000));
+  demoChallenges.set(code, { username, expiresAt: Date.now() + 10 * 60 * 1000 });
+  challengeCooldowns.set(key, Date.now());
+  res.status(201).json({ ok: true, code, expiresInSeconds: 600, minecraftUsername: username });
+});
+
+// Called only by the authenticated server plugin after a player enters their code.
+app.post("/api/bridge/verify", requireBridgeKey, (req, res) => {
+  const code = String(req.body?.code || "").trim();
+  const inGameUsername = String(req.body?.minecraftUsername || "").trim();
+  if (!/^\d{6}$/.test(code) || !/^[A-Za-z0-9_]{3,16}$/.test(inGameUsername)) {
+    return res.status(400).json({ ok: false, error: "invalid_code_or_username" });
+  }
+  const challenge = demoChallenges.get(code);
+  if (!challenge || challenge.expiresAt < Date.now()) {
+    demoChallenges.delete(code);
+    return res.status(404).json({ ok: false, error: "code_invalid_or_expired" });
+  }
+  if (challenge.username.toLowerCase() !== inGameUsername.toLowerCase()) {
+    return res.status(403).json({ ok: false, error: "username_does_not_match" });
+  }
+  const key = inGameUsername.toLowerCase();
+  const existingOrder = demoOrders.find(order => order.username.toLowerCase() === key && order.status !== "failed");
+  if (existingOrder || completedDemoOrders.has(key)) {
+    demoChallenges.delete(code);
+    return res.status(409).json({ ok: false, error: "demo_already_used" });
+  }
+  demoChallenges.delete(code);
   const order = {
     id: crypto.randomUUID(),
-    username,
+    username: challenge.username,
     product: "vip+",
     duration: "30d",
     status: "pending",
     createdAt: new Date().toISOString()
   };
   demoOrders.push(order);
-  res.status(201).json({ ok: true, order: { id: order.id, username, product: order.product, duration: order.duration, status: order.status } });
+  res.status(201).json({ ok: true, message: "verified_and_queued", product: "vip+", duration: "30d" });
 });
 
 // Plugin polls this endpoint. Only fixed product data is ever returned.
