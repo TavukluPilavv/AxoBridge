@@ -5,7 +5,7 @@ const crypto = require("crypto");
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const apiKey = process.env.AXOBRIDGE_API_KEY;
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || "https://axocraft.com,https://tavuklupilavv.github.io").split(",").map(value => value.trim()).filter(Boolean);
+const allowedOrigins = [...(process.env.ALLOWED_ORIGINS || "").split(","), ...(process.env.ALLOWED_ORIGIN || "https://axocraft.com").split(","), "https://tavuklupilavv.github.io"].map(value => value.trim()).filter(Boolean);
 
 if (!apiKey || apiKey.length < 32) {
   console.error("AXOBRIDGE_API_KEY must be set to a random secret of at least 32 characters.");
